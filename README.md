@@ -32,11 +32,11 @@ A professional-grade, browser-based utility for generating high-quality PDFs fro
 
 ## 📦 Getting Started
 
-1. Clone this repository or download `html-pdf-studio.html`[cite: 1].
-2. Open the file in any modern web browser[cite: 1].
-3. Load your content via the "Upload" or "Paste" tab[cite: 1].
-4. Configure your desired PDF settings in the sidebar[cite: 1].
-5. Click **Generate Professional PDF** to create and download your document[cite: 1].
+1. Clone this repository or download.
+2. Open the file in any modern web browser.
+3. Load your content via the "Upload" or "Paste" tab.
+4. Configure your desired PDF settings in the sidebar.
+5. Click **Generate Professional PDF** to create and download your document.
 
 ## 🤝 Contributing
 
