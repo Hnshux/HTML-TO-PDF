@@ -1,0 +1,1943 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HTML → PDF Studio</title>
+
+<!-- External Libraries -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.js"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/xml/xml.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/htmlmixed/htmlmixed.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/css/css.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/javascript/javascript.min.js"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/theme/dracula.min.css">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+<style>
+/* ─────────────────────────────────────────────
+   CSS CUSTOM PROPERTIES
+───────────────────────────────────────────── */
+:root {
+  --bg: #F7F8FA;
+  --card: #FFFFFF;
+  --primary: #2563EB;
+  --primary-hover: #1D4ED8;
+  --primary-light: #EFF6FF;
+  --text: #111827;
+  --text-secondary: #6B7280;
+  --border: #E5E7EB;
+  --border-light: #F3F4F6;
+  --shadow-sm: 0 1px 3px rgba(0,0,0,.06), 0 1px 2px rgba(0,0,0,.04);
+  --shadow: 0 4px 16px rgba(0,0,0,.07), 0 2px 6px rgba(0,0,0,.04);
+  --shadow-lg: 0 12px 40px rgba(0,0,0,.10), 0 4px 12px rgba(0,0,0,.06);
+  --radius: 16px;
+  --radius-sm: 10px;
+  --radius-pill: 999px;
+  --success: #10B981;
+  --warning: #F59E0B;
+  --error: #EF4444;
+  --transition: .2s cubic-bezier(.4,0,.2,1);
+}
+
+[data-theme="dark"] {
+  --bg: #0F1117;
+  --card: #1A1D27;
+  --text: #F9FAFB;
+  --text-secondary: #9CA3AF;
+  --border: #2D3148;
+  --border-light: #232638;
+  --primary-light: #1E3A5F;
+  --shadow-sm: 0 1px 3px rgba(0,0,0,.3);
+  --shadow: 0 4px 16px rgba(0,0,0,.4);
+  --shadow-lg: 0 12px 40px rgba(0,0,0,.5);
+}
+
+/* ─────────────────────────────────────────────
+   RESET & BASE
+───────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { font-size: 16px; scroll-behavior: smooth; }
+body {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  transition: background var(--transition), color var(--transition);
+  overflow-x: hidden;
+}
+button { cursor: pointer; border: none; background: none; font-family: inherit; }
+input, textarea, select { font-family: inherit; }
+a { color: inherit; text-decoration: none; }
+
+/* ─────────────────────────────────────────────
+   SCROLLBAR
+───────────────────────────────────────────── */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 999px; }
+::-webkit-scrollbar-thumb:hover { background: var(--text-secondary); }
+
+/* ─────────────────────────────────────────────
+   NAVBAR
+───────────────────────────────────────────── */
+.navbar {
+  position: sticky; top: 0; z-index: 100;
+  background: var(--card);
+  border-bottom: 1px solid var(--border);
+  padding: 0 32px;
+  height: 60px;
+  display: flex; align-items: center; justify-content: space-between;
+  transition: background var(--transition), border-color var(--transition);
+  box-shadow: var(--shadow-sm);
+}
+.nav-logo {
+  display: flex; align-items: center; gap: 12px;
+}
+.nav-logo-icon {
+  width: 36px; height: 36px; border-radius: 10px;
+  background: linear-gradient(135deg, var(--primary), #7C3AED);
+  display: flex; align-items: center; justify-content: center;
+  color: white; font-size: 16px; font-weight: 700; letter-spacing: -.5px;
+  flex-shrink: 0;
+}
+.nav-logo-text { display: flex; flex-direction: column; line-height: 1.2; }
+.nav-logo-title { font-size: 15px; font-weight: 700; color: var(--text); letter-spacing: -.3px; }
+.nav-logo-sub { font-size: 11px; color: var(--text-secondary); font-weight: 400; }
+
+.nav-actions { display: flex; align-items: center; gap: 8px; }
+.nav-btn {
+  display: flex; align-items: center; gap: 6px;
+  padding: 7px 14px; border-radius: var(--radius-pill);
+  font-size: 13px; font-weight: 500; color: var(--text-secondary);
+  transition: all var(--transition);
+  border: 1px solid transparent;
+}
+.nav-btn:hover {
+  color: var(--text); background: var(--border-light);
+  border-color: var(--border);
+}
+.nav-btn svg { width: 15px; height: 15px; }
+.nav-btn-icon {
+  width: 36px; height: 36px; padding: 0;
+  border-radius: 10px; justify-content: center;
+}
+
+/* ─────────────────────────────────────────────
+   LAYOUT
+───────────────────────────────────────────── */
+.app-layout {
+  display: grid;
+  grid-template-columns: 1fr 280px;
+  grid-template-rows: auto;
+  gap: 24px;
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 32px 24px 48px;
+}
+.main-area { min-width: 0; display: flex; flex-direction: column; gap: 20px; }
+.sidebar { display: flex; flex-direction: column; gap: 16px; }
+
+/* ─────────────────────────────────────────────
+   CARDS
+───────────────────────────────────────────── */
+.card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-sm);
+  transition: background var(--transition), border-color var(--transition), box-shadow var(--transition);
+  overflow: hidden;
+}
+.card:hover { box-shadow: var(--shadow); }
+.card-header {
+  padding: 18px 22px 16px;
+  border-bottom: 1px solid var(--border-light);
+  display: flex; align-items: center; justify-content: space-between;
+}
+.card-title { font-size: 13px; font-weight: 600; color: var(--text); letter-spacing: .2px; }
+.card-body { padding: 20px 22px; }
+.card-body-sm { padding: 16px 20px; }
+
+/* ─────────────────────────────────────────────
+   TABS
+───────────────────────────────────────────── */
+.tabs {
+  display: flex; gap: 2px;
+  background: var(--border-light);
+  border-radius: var(--radius-sm);
+  padding: 3px;
+}
+.tab {
+  flex: 1; padding: 8px 16px; border-radius: 8px;
+  font-size: 13px; font-weight: 500; color: var(--text-secondary);
+  transition: all var(--transition); text-align: center;
+}
+.tab.active {
+  background: var(--card); color: var(--text);
+  box-shadow: var(--shadow-sm);
+}
+.tab:hover:not(.active) { color: var(--text); }
+
+/* ─────────────────────────────────────────────
+   UPLOAD ZONE
+───────────────────────────────────────────── */
+.upload-zone {
+  border: 2px dashed var(--border);
+  border-radius: var(--radius-sm);
+  padding: 52px 32px;
+  text-align: center;
+  cursor: pointer;
+  transition: all var(--transition);
+  background: transparent;
+  position: relative;
+}
+.upload-zone:hover, .upload-zone.drag-over {
+  border-color: var(--primary);
+  background: var(--primary-light);
+}
+.upload-zone.drag-over { transform: scale(1.01); }
+.upload-icon {
+  width: 52px; height: 52px;
+  background: var(--primary-light);
+  border-radius: 14px;
+  display: flex; align-items: center; justify-content: center;
+  margin: 0 auto 16px;
+  transition: transform var(--transition);
+}
+.upload-zone:hover .upload-icon { transform: translateY(-2px); }
+.upload-icon svg { width: 24px; height: 24px; color: var(--primary); }
+.upload-title { font-size: 15px; font-weight: 600; color: var(--text); margin-bottom: 6px; }
+.upload-sub { font-size: 13px; color: var(--text-secondary); line-height: 1.5; }
+.upload-hint { font-size: 11px; color: var(--text-secondary); margin-top: 10px; opacity: .7; }
+#file-input { display: none; }
+
+/* File preview card */
+.file-info {
+  display: flex; align-items: center; gap: 14px;
+  padding: 16px 18px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  animation: fadeSlideUp .3s ease;
+}
+.file-info-icon {
+  width: 42px; height: 42px; border-radius: 10px;
+  background: var(--primary-light);
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+.file-info-icon svg { width: 20px; height: 20px; color: var(--primary); }
+.file-info-meta { flex: 1; min-width: 0; }
+.file-info-name { font-size: 13px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.file-info-stats { font-size: 11px; color: var(--text-secondary); margin-top: 2px; }
+.file-info-actions { display: flex; gap: 6px; }
+
+/* ─────────────────────────────────────────────
+   CODE EDITOR
+───────────────────────────────────────────── */
+.editor-wrap { border-radius: var(--radius-sm); overflow: hidden; border: 1px solid var(--border); }
+.CodeMirror {
+  height: 320px !important;
+  font-family: 'JetBrains Mono', monospace !important;
+  font-size: 13px !important;
+  line-height: 1.6 !important;
+}
+.CodeMirror-scroll { padding: 8px 0; }
+
+/* ─────────────────────────────────────────────
+   ANALYSIS PANEL
+───────────────────────────────────────────── */
+.analysis-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+  gap: 10px;
+}
+.analysis-stat {
+  background: var(--border-light);
+  border-radius: var(--radius-sm);
+  padding: 12px 14px;
+  text-align: center;
+  transition: all var(--transition);
+  animation: fadeSlideUp .3s ease backwards;
+}
+.analysis-stat:hover { background: var(--primary-light); }
+.analysis-stat-num {
+  font-size: 22px; font-weight: 700; color: var(--primary);
+  line-height: 1; font-variant-numeric: tabular-nums;
+}
+.analysis-stat-label { font-size: 11px; color: var(--text-secondary); margin-top: 4px; font-weight: 500; }
+
+.warnings-list { display: flex; flex-direction: column; gap: 6px; margin-top: 14px; }
+.warning-item {
+  display: flex; align-items: flex-start; gap: 8px;
+  padding: 8px 10px; border-radius: 8px;
+  font-size: 12px; line-height: 1.5; animation: fadeSlideUp .2s ease;
+}
+.warning-item.warn { background: #FFFBEB; color: #92400E; border: 1px solid #FDE68A; }
+.warning-item.info { background: #EFF6FF; color: #1E40AF; border: 1px solid #BFDBFE; }
+.warning-item.error { background: #FEF2F2; color: #991B1B; border: 1px solid #FECACA; }
+[data-theme="dark"] .warning-item.warn { background: #292210; color: #FCD34D; border-color: #44340A; }
+[data-theme="dark"] .warning-item.info { background: #0F1E3A; color: #93C5FD; border-color: #1E3A6A; }
+[data-theme="dark"] .warning-item.error { background: #2A0F0F; color: #FCA5A5; border-color: #6A1F1F; }
+.warning-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; margin-top: 5px; }
+.warning-item.warn .warning-dot { background: #F59E0B; }
+.warning-item.info .warning-dot { background: #3B82F6; }
+.warning-item.error .warning-dot { background: #EF4444; }
+
+/* ─────────────────────────────────────────────
+   PREVIEW AREA
+───────────────────────────────────────────── */
+.preview-container {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 16px;
+  min-height: 500px;
+}
+.preview-pane {
+  display: flex; flex-direction: column;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+.preview-pane-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 10px 14px;
+  background: var(--border-light);
+  border-bottom: 1px solid var(--border);
+  font-size: 12px; font-weight: 600; color: var(--text-secondary);
+}
+.preview-pane-controls { display: flex; gap: 4px; }
+.preview-ctrl-btn {
+  padding: 4px 8px; border-radius: 6px; font-size: 11px; font-weight: 500;
+  color: var(--text-secondary); transition: all var(--transition);
+}
+.preview-ctrl-btn:hover, .preview-ctrl-btn.active { background: var(--card); color: var(--primary); }
+.preview-frame { flex: 1; position: relative; overflow: hidden; }
+.preview-frame iframe {
+  width: 100%; height: 100%; min-height: 420px;
+  border: none; display: block;
+}
+.preview-placeholder {
+  flex: 1; display: flex; flex-direction: column;
+  align-items: center; justify-content: center; gap: 10px;
+  color: var(--text-secondary); padding: 48px;
+  text-align: center;
+}
+.preview-placeholder svg { width: 48px; height: 48px; opacity: .3; }
+.preview-placeholder p { font-size: 13px; }
+
+/* PDF preview */
+#pdf-preview-canvas-wrap {
+  flex: 1; overflow: auto;
+  background: #525659;
+  display: flex; flex-direction: column; align-items: center;
+  padding: 20px; gap: 12px;
+  min-height: 420px;
+}
+#pdf-preview-canvas-wrap canvas {
+  box-shadow: 0 4px 20px rgba(0,0,0,.4);
+  border-radius: 2px;
+  max-width: 100%; display: block;
+}
+
+/* ─────────────────────────────────────────────
+   SETTINGS SIDEBAR
+───────────────────────────────────────────── */
+.setting-group { margin-bottom: 20px; }
+.setting-group:last-child { margin-bottom: 0; }
+.setting-label {
+  font-size: 11px; font-weight: 600; color: var(--text-secondary);
+  text-transform: uppercase; letter-spacing: .6px;
+  margin-bottom: 8px; display: block;
+}
+.setting-select {
+  width: 100%; padding: 8px 12px;
+  border: 1px solid var(--border); border-radius: var(--radius-sm);
+  background: var(--border-light); color: var(--text);
+  font-size: 13px; font-weight: 500;
+  transition: all var(--transition); appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%236B7280'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'/%3E%3C/svg%3E");
+  background-repeat: no-repeat; background-position: right 10px center; background-size: 14px;
+  padding-right: 32px;
+}
+.setting-select:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px rgba(37,99,235,.1); }
+.btn-group { display: flex; gap: 4px; }
+.btn-seg {
+  flex: 1; padding: 8px 4px; border-radius: var(--radius-sm);
+  font-size: 12px; font-weight: 500; text-align: center;
+  border: 1px solid var(--border); background: var(--border-light);
+  color: var(--text-secondary); transition: all var(--transition);
+}
+.btn-seg.active { background: var(--primary); border-color: var(--primary); color: white; }
+.btn-seg:hover:not(.active) { border-color: var(--primary); color: var(--primary); }
+
+/* Toggle */
+.toggle-row { display: flex; align-items: center; justify-content: space-between; padding: 6px 0; }
+.toggle-row-label { font-size: 13px; font-weight: 500; color: var(--text); }
+.toggle {
+  width: 36px; height: 20px; border-radius: 999px;
+  background: var(--border); position: relative;
+  transition: background var(--transition); cursor: pointer; flex-shrink: 0;
+}
+.toggle.on { background: var(--primary); }
+.toggle::after {
+  content: ''; position: absolute;
+  width: 14px; height: 14px; border-radius: 50%;
+  background: white; top: 3px; left: 3px;
+  transition: transform var(--transition);
+  box-shadow: 0 1px 3px rgba(0,0,0,.2);
+}
+.toggle.on::after { transform: translateX(16px); }
+
+/* ─────────────────────────────────────────────
+   STATS BAR (bottom of sidebar)
+───────────────────────────────────────────── */
+.stats-row { display: flex; gap: 8px; flex-wrap: wrap; }
+.stat-badge {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 4px 10px; border-radius: 999px;
+  background: var(--border-light); border: 1px solid var(--border);
+  font-size: 11px; font-weight: 500; color: var(--text-secondary);
+}
+.stat-badge strong { color: var(--text); }
+
+/* ─────────────────────────────────────────────
+   BUTTONS
+───────────────────────────────────────────── */
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 7px;
+  padding: 10px 20px; border-radius: var(--radius-pill);
+  font-size: 14px; font-weight: 600; transition: all var(--transition);
+  position: relative; overflow: hidden; white-space: nowrap;
+}
+.btn::after {
+  content: ''; position: absolute;
+  width: 0; height: 0; border-radius: 50%;
+  background: rgba(255,255,255,.3);
+  top: 50%; left: 50%; transform: translate(-50%,-50%);
+  transition: width .4s, height .4s, opacity .4s;
+  opacity: 0;
+}
+.btn:active::after { width: 200px; height: 200px; opacity: 0; }
+
+.btn-primary {
+  background: var(--primary); color: white;
+  box-shadow: 0 2px 8px rgba(37,99,235,.3);
+}
+.btn-primary:hover {
+  background: var(--primary-hover);
+  box-shadow: 0 4px 16px rgba(37,99,235,.4);
+  transform: translateY(-1px);
+}
+.btn-primary:active { transform: translateY(0); }
+
+.btn-secondary {
+  background: var(--border-light); color: var(--text);
+  border: 1px solid var(--border);
+}
+.btn-secondary:hover { background: var(--border); transform: translateY(-1px); }
+
+.btn-ghost { color: var(--text-secondary); }
+.btn-ghost:hover { color: var(--text); background: var(--border-light); }
+
+.btn-sm { padding: 7px 14px; font-size: 12px; }
+.btn-xs { padding: 5px 10px; font-size: 11px; }
+.btn-icon { width: 32px; height: 32px; padding: 0; border-radius: 8px; }
+.btn svg { width: 16px; height: 16px; flex-shrink: 0; }
+
+.generate-btn {
+  width: 100%; padding: 16px 24px;
+  border-radius: 14px; font-size: 15px; font-weight: 700;
+  background: linear-gradient(135deg, var(--primary) 0%, #7C3AED 100%);
+  color: white;
+  box-shadow: 0 4px 20px rgba(37,99,235,.35);
+  transition: all var(--transition);
+  position: relative; overflow: hidden;
+}
+.generate-btn:hover {
+  box-shadow: 0 8px 30px rgba(37,99,235,.45);
+  transform: translateY(-2px);
+}
+.generate-btn:disabled {
+  opacity: .6; cursor: not-allowed; transform: none;
+  box-shadow: none;
+}
+.generate-btn .btn-shimmer {
+  position: absolute; inset: 0;
+  background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,.15) 50%, transparent 100%);
+  transform: translateX(-100%);
+  animation: shimmer 2s infinite;
+}
+@keyframes shimmer {
+  to { transform: translateX(100%); }
+}
+
+/* ─────────────────────────────────────────────
+   PROGRESS / LOADING
+───────────────────────────────────────────── */
+.progress-overlay {
+  position: fixed; inset: 0; z-index: 1000;
+  background: rgba(0,0,0,.5);
+  display: flex; align-items: center; justify-content: center;
+  backdrop-filter: blur(8px);
+  animation: fadeIn .2s ease;
+  display: none;
+}
+.progress-card {
+  background: var(--card); border-radius: var(--radius);
+  padding: 40px 48px; text-align: center;
+  box-shadow: var(--shadow-lg); min-width: 340px;
+  animation: scaleIn .3s cubic-bezier(.34,1.56,.64,1);
+}
+.progress-spinner {
+  width: 56px; height: 56px;
+  border: 3px solid var(--border);
+  border-top-color: var(--primary);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin: 0 auto 20px;
+}
+.progress-title { font-size: 17px; font-weight: 700; margin-bottom: 6px; }
+.progress-step { font-size: 13px; color: var(--text-secondary); margin-bottom: 24px; }
+.progress-bar-wrap { background: var(--border-light); border-radius: 999px; height: 4px; overflow: hidden; }
+.progress-bar-fill {
+  height: 100%; background: linear-gradient(90deg, var(--primary), #7C3AED);
+  border-radius: 999px;
+  transition: width .5s cubic-bezier(.4,0,.2,1);
+}
+.progress-steps { display: flex; flex-direction: column; gap: 8px; margin-bottom: 20px; }
+.progress-step-item {
+  display: flex; align-items: center; gap: 10px;
+  font-size: 13px; color: var(--text-secondary); text-align: left;
+}
+.progress-step-item.done { color: var(--success); }
+.progress-step-item.active { color: var(--text); font-weight: 500; }
+.progress-step-icon { width: 20px; height: 20px; flex-shrink: 0; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 10px; }
+.progress-step-item.done .progress-step-icon { background: var(--success); color: white; }
+.progress-step-item.active .progress-step-icon { background: var(--primary); color: white; animation: pulse 1s ease infinite; }
+.progress-step-item:not(.done):not(.active) .progress-step-icon { background: var(--border-light); border: 1px solid var(--border); }
+
+/* ─────────────────────────────────────────────
+   SUCCESS STATE
+───────────────────────────────────────────── */
+.success-actions {
+  display: flex; gap: 10px; flex-wrap: wrap;
+  padding: 16px 22px;
+  border-top: 1px solid var(--border-light);
+  animation: fadeSlideUp .4s ease;
+  background: var(--border-light);
+}
+
+/* ─────────────────────────────────────────────
+   EMPTY STATE
+───────────────────────────────────────────── */
+.empty-hint {
+  text-align: center; padding: 32px;
+  color: var(--text-secondary);
+}
+.empty-hint svg { width: 40px; height: 40px; opacity: .25; margin: 0 auto 10px; display: block; }
+.empty-hint p { font-size: 13px; }
+
+/* ─────────────────────────────────────────────
+   FULLSCREEN PREVIEW
+───────────────────────────────────────────── */
+.fullscreen-modal {
+  position: fixed; inset: 0; z-index: 200;
+  background: #1a1a1a;
+  display: none; flex-direction: column;
+  animation: fadeIn .2s ease;
+}
+.fullscreen-modal.open { display: flex; }
+.fullscreen-toolbar {
+  display: flex; align-items: center; gap: 10px;
+  padding: 12px 20px;
+  background: #111; border-bottom: 1px solid #333;
+}
+.fullscreen-toolbar h3 { font-size: 14px; color: white; font-weight: 600; flex: 1; }
+.fullscreen-body { flex: 1; overflow: auto; }
+.fullscreen-iframe { width: 100%; height: 100%; border: none; }
+
+/* ─────────────────────────────────────────────
+   HELP MODAL
+───────────────────────────────────────────── */
+.modal-overlay {
+  position: fixed; inset: 0; z-index: 300;
+  background: rgba(0,0,0,.5);
+  display: none; align-items: center; justify-content: center;
+  backdrop-filter: blur(4px);
+  animation: fadeIn .2s ease;
+}
+.modal-overlay.open { display: flex; }
+.modal-card {
+  background: var(--card); border-radius: var(--radius);
+  box-shadow: var(--shadow-lg); padding: 32px;
+  max-width: 520px; width: 90%; max-height: 80vh; overflow-y: auto;
+  animation: scaleIn .25s cubic-bezier(.34,1.56,.64,1);
+}
+.modal-card h2 { font-size: 18px; font-weight: 700; margin-bottom: 6px; }
+.modal-card .modal-sub { font-size: 13px; color: var(--text-secondary); margin-bottom: 24px; }
+.shortcut-list { display: flex; flex-direction: column; gap: 10px; }
+.shortcut-item { display: flex; align-items: center; justify-content: space-between; font-size: 13px; }
+.shortcut-item span { color: var(--text-secondary); }
+.kbd-wrap { display: flex; gap: 4px; }
+kbd {
+  display: inline-flex; align-items: center; justify-content: center;
+  padding: 3px 8px; border-radius: 6px;
+  background: var(--border-light); border: 1px solid var(--border);
+  font-size: 12px; font-family: 'JetBrains Mono', monospace;
+  color: var(--text); font-weight: 500;
+  box-shadow: 0 1px 0 var(--border);
+}
+.modal-divider { height: 1px; background: var(--border); margin: 20px 0; }
+
+/* ─────────────────────────────────────────────
+   TOAST
+───────────────────────────────────────────── */
+.toast-container {
+  position: fixed; bottom: 24px; right: 24px; z-index: 500;
+  display: flex; flex-direction: column; gap: 8px; align-items: flex-end;
+}
+.toast {
+  display: flex; align-items: center; gap: 10px;
+  padding: 12px 16px; border-radius: var(--radius-sm);
+  background: var(--text); color: var(--bg);
+  font-size: 13px; font-weight: 500;
+  box-shadow: var(--shadow-lg);
+  animation: toastIn .3s cubic-bezier(.34,1.56,.64,1);
+  max-width: 320px;
+}
+.toast.success { background: var(--success); }
+.toast.error { background: var(--error); }
+@keyframes toastIn {
+  from { opacity: 0; transform: translateY(16px) scale(.96); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+@keyframes toastOut {
+  from { opacity: 1; transform: translateY(0) scale(1); }
+  to { opacity: 0; transform: translateY(8px) scale(.96); }
+}
+
+/* ─────────────────────────────────────────────
+   ANIMATIONS
+───────────────────────────────────────────── */
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+@keyframes fadeSlideUp {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes scaleIn {
+  from { opacity: 0; transform: scale(.94); }
+  to { opacity: 1; transform: scale(1); }
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+@keyframes pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(37,99,235,.4); }
+  50% { box-shadow: 0 0 0 6px rgba(37,99,235,.0); }
+}
+@keyframes bounceIn {
+  0% { transform: scale(0); }
+  60% { transform: scale(1.1); }
+  100% { transform: scale(1); }
+}
+
+.animate-in { animation: fadeSlideUp .35s ease both; }
+
+/* ─────────────────────────────────────────────
+   SECTION TITLE
+───────────────────────────────────────────── */
+.section-title-row {
+  display: flex; align-items: center; gap: 10px; margin-bottom: 16px;
+}
+.section-title {
+  font-size: 16px; font-weight: 700; color: var(--text);
+}
+.section-badge {
+  padding: 2px 10px; border-radius: 999px;
+  background: var(--primary-light); color: var(--primary);
+  font-size: 11px; font-weight: 600;
+}
+
+/* ─────────────────────────────────────────────
+   RESPONSIVE
+───────────────────────────────────────────── */
+@media (max-width: 1100px) {
+  .app-layout { grid-template-columns: 1fr; }
+  .sidebar { order: -1; display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+}
+@media (max-width: 760px) {
+  .app-layout { padding: 16px 14px 32px; gap: 14px; }
+  .navbar { padding: 0 16px; }
+  .preview-container { grid-template-columns: 1fr; }
+  .sidebar { grid-template-columns: 1fr; }
+  .nav-logo-sub { display: none; }
+  .analysis-grid { grid-template-columns: repeat(3, 1fr); }
+}
+@media (max-width: 480px) {
+  .analysis-grid { grid-template-columns: repeat(2, 1fr); }
+  .success-actions { flex-direction: column; }
+  .success-actions .btn { width: 100%; justify-content: center; }
+}
+
+/* ─────────────────────────────────────────────
+   MISC
+───────────────────────────────────────────── */
+.badge {
+  display: inline-flex; align-items: center;
+  padding: 2px 8px; border-radius: 999px;
+  font-size: 11px; font-weight: 600;
+}
+.badge-success { background: #D1FAE5; color: #065F46; }
+.badge-warning { background: #FEF3C7; color: #92400E; }
+.badge-info { background: #DBEAFE; color: #1E40AF; }
+[data-theme="dark"] .badge-success { background: #064E3B; color: #6EE7B7; }
+[data-theme="dark"] .badge-warning { background: #451A03; color: #FDE68A; }
+[data-theme="dark"] .badge-info { background: #1E3A8A; color: #93C5FD; }
+
+.divider { height: 1px; background: var(--border); margin: 4px 0; }
+
+.text-secondary { color: var(--text-secondary); }
+.text-xs { font-size: 11px; }
+.text-sm { font-size: 13px; }
+.fw-600 { font-weight: 600; }
+.mt-8 { margin-top: 8px; }
+.mt-12 { margin-top: 12px; }
+.mt-16 { margin-top: 16px; }
+
+.cm-s-dracula.CodeMirror { background: #1e1f2e !important; }
+
+/* Zoom controls */
+.zoom-controls { display: flex; align-items: center; gap: 4px; }
+.zoom-btn { padding: 4px 9px; border-radius: 6px; font-size: 11px; font-weight: 600; color: var(--text-secondary); transition: all var(--transition); }
+.zoom-btn:hover, .zoom-btn.active { background: var(--primary); color: white; }
+
+/* Section collapse */
+.section-collapse { width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; border-radius: 6px; color: var(--text-secondary); transition: all var(--transition); }
+.section-collapse:hover { background: var(--border-light); color: var(--text); }
+.section-collapse svg { width: 14px; height: 14px; transition: transform var(--transition); }
+.section-collapse.collapsed svg { transform: rotate(-90deg); }
+</style>
+</head>
+<body>
+
+<!-- ── NAVBAR ── -->
+<nav class="navbar">
+  <div class="nav-logo">
+    <div class="nav-logo-icon">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="13" x2="15" y2="13"/><line x1="9" y1="17" x2="11" y2="17"/></svg>
+    </div>
+    <div class="nav-logo-text">
+      <span class="nav-logo-title">HTML → PDF Studio</span>
+      <span class="nav-logo-sub">Professional PDF Generator</span>
+    </div>
+  </div>
+  <div class="nav-actions">
+    <button class="nav-btn" id="btn-undo" title="Undo (Ctrl+Z)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7v6h6"/><path d="M21 17a9 9 0 00-9-9 9 9 0 00-6 2.3L3 13"/></svg>
+    </button>
+    <button class="nav-btn" id="btn-redo" title="Redo (Ctrl+Y)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 7v6h-6"/><path d="M3 17a9 9 0 019-9 9 9 0 016 2.3L21 13"/></svg>
+    </button>
+    <div style="width:1px;height:22px;background:var(--border);margin:0 4px"></div>
+    <button class="nav-btn" id="btn-theme" title="Toggle theme">
+      <svg id="theme-icon-light" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+      <svg id="theme-icon-dark" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:none"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+    </button>
+    <button class="nav-btn" id="btn-help">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+      <span>Help</span>
+    </button>
+  </div>
+</nav>
+
+<!-- ── MAIN LAYOUT ── -->
+<div class="app-layout">
+
+  <!-- ══ MAIN AREA ══ -->
+  <div class="main-area">
+
+    <!-- INPUT CARD -->
+    <div class="card animate-in" style="animation-delay:.05s">
+      <div class="card-header">
+        <span class="card-title">Input</span>
+        <div class="tabs" id="input-tabs" style="width:220px">
+          <button class="tab active" data-tab="upload">Upload File</button>
+          <button class="tab" data-tab="paste">Paste Code</button>
+        </div>
+      </div>
+      <div class="card-body">
+
+        <!-- Upload Tab -->
+        <div id="tab-upload">
+          <div class="upload-zone" id="upload-zone">
+            <input type="file" id="file-input" accept=".html,.htm">
+            <div class="upload-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 16 12 12 8 16"/><line x1="12" y1="12" x2="12" y2="21"/><path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"/></svg>
+            </div>
+            <p class="upload-title">Drag & drop your HTML file here</p>
+            <p class="upload-sub">or <strong style="color:var(--primary);cursor:pointer" onclick="document.getElementById('file-input').click()">browse files</strong> from your device</p>
+            <p class="upload-hint">Supports .html and .htm files</p>
+          </div>
+          <div id="file-info-wrap" style="display:none;margin-top:14px">
+            <div class="file-info">
+              <div class="file-info-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+              </div>
+              <div class="file-info-meta">
+                <div class="file-info-name" id="file-name">document.html</div>
+                <div class="file-info-stats" id="file-stats">0 KB · 0 lines</div>
+              </div>
+              <div class="file-info-actions">
+                <button class="btn btn-sm btn-secondary" id="btn-preview-html">Preview</button>
+                <button class="btn btn-sm btn-ghost" id="btn-remove-file" title="Remove file">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Paste Tab -->
+        <div id="tab-paste" style="display:none">
+          <div class="editor-wrap">
+            <textarea id="code-editor"></textarea>
+          </div>
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-top:10px">
+            <span class="text-xs text-secondary" id="paste-char-count">0 characters</span>
+            <div style="display:flex;gap:6px">
+              <button class="btn btn-xs btn-secondary" id="btn-paste-sample">Load sample</button>
+              <button class="btn btn-xs btn-ghost" id="btn-clear-editor">Clear</button>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- ANALYSIS CARD -->
+    <div class="card animate-in" id="analysis-card" style="animation-delay:.1s;display:none">
+      <div class="card-header">
+        <div style="display:flex;align-items:center;gap:10px">
+          <span class="card-title">Document Analysis</span>
+          <span class="badge badge-info" id="doc-title-badge">Untitled</span>
+        </div>
+        <button class="section-collapse" id="analysis-toggle" title="Collapse">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"/></svg>
+        </button>
+      </div>
+      <div id="analysis-body" class="card-body">
+        <div class="analysis-grid" id="analysis-stats"></div>
+        <div id="warnings-wrap"></div>
+        <div class="stats-row mt-16" id="doc-extra-stats"></div>
+      </div>
+    </div>
+
+    <!-- PREVIEW CARD -->
+    <div class="card animate-in" id="preview-card" style="animation-delay:.15s;display:none">
+      <div class="card-header">
+        <span class="card-title">Live Preview</span>
+        <div style="display:flex;align-items:center;gap:8px">
+          <div class="zoom-controls" id="html-zoom-controls">
+            <span style="font-size:11px;color:var(--text-secondary);margin-right:4px">Zoom:</span>
+            <button class="zoom-btn active" data-zoom="100">100%</button>
+            <button class="zoom-btn" data-zoom="125">125%</button>
+            <button class="zoom-btn" data-zoom="150">150%</button>
+          </div>
+          <button class="btn btn-xs btn-secondary" id="btn-fullscreen">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:13px;height:13px"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/></svg>
+            Fullscreen
+          </button>
+        </div>
+      </div>
+      <div class="card-body" style="padding:16px">
+        <div class="preview-container">
+          <div class="preview-pane">
+            <div class="preview-pane-header">
+              <span>HTML Preview</span>
+            </div>
+            <div class="preview-frame" id="html-preview-frame">
+              <iframe id="html-iframe" title="HTML Preview" sandbox="allow-same-origin allow-scripts"></iframe>
+            </div>
+          </div>
+          <div class="preview-pane">
+            <div class="preview-pane-header">
+              <span>PDF Preview</span>
+              <div class="preview-pane-controls">
+                <button class="preview-ctrl-btn active" data-pdf-view="fit">Fit</button>
+                <button class="preview-ctrl-btn" data-pdf-view="page">Full</button>
+              </div>
+            </div>
+            <div id="pdf-preview-canvas-wrap">
+              <div class="preview-placeholder">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+                <p>PDF preview will appear after generating</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SUCCESS ACTIONS -->
+    <div id="success-actions-card" class="card" style="display:none">
+      <div class="success-actions">
+        <button class="btn btn-primary" id="btn-download-pdf">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          Download PDF
+        </button>
+        <button class="btn btn-secondary" id="btn-download-html">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 16 12 12 8 16"/><line x1="12" y1="12" x2="12" y2="21"/><path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"/></svg>
+          Download Optimized HTML
+        </button>
+        <button class="btn btn-secondary" id="btn-copy-html">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+          Copy HTML
+        </button>
+        <button class="btn btn-secondary" id="btn-print">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+          Print
+        </button>
+        <button class="btn btn-ghost btn-sm" id="btn-reset">
+          Reset & Start Over
+        </button>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ══ SIDEBAR ══ -->
+  <div class="sidebar">
+
+    <!-- GENERATE BUTTON -->
+    <div class="card animate-in" style="animation-delay:.2s">
+      <div class="card-body">
+        <button class="generate-btn" id="btn-generate" disabled>
+          <span class="btn-shimmer"></span>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="width:18px;height:18px"><path d="M5 3l14 9-14 9V3z"/></svg>
+          Generate Professional PDF
+        </button>
+        <p style="font-size:11px;color:var(--text-secondary);text-align:center;margin-top:10px">Paste HTML or upload a file to begin</p>
+      </div>
+    </div>
+
+    <!-- PDF SETTINGS -->
+    <div class="card animate-in" style="animation-delay:.25s">
+      <div class="card-header">
+        <span class="card-title">PDF Settings</span>
+      </div>
+      <div class="card-body-sm">
+
+        <div class="setting-group">
+          <label class="setting-label">Paper Size</label>
+          <select class="setting-select" id="setting-paper">
+            <option value="a4">A4 (210 × 297 mm)</option>
+            <option value="letter">Letter (8.5 × 11 in)</option>
+            <option value="legal">Legal (8.5 × 14 in)</option>
+          </select>
+        </div>
+
+        <div class="setting-group">
+          <label class="setting-label">Orientation</label>
+          <div class="btn-group">
+            <button class="btn-seg active" data-setting="orientation" data-value="portrait">Portrait</button>
+            <button class="btn-seg" data-setting="orientation" data-value="landscape">Landscape</button>
+          </div>
+        </div>
+
+        <div class="setting-group">
+          <label class="setting-label">Margins</label>
+          <div class="btn-group">
+            <button class="btn-seg" data-setting="margins" data-value="small">Small</button>
+            <button class="btn-seg active" data-setting="margins" data-value="medium">Medium</button>
+            <button class="btn-seg" data-setting="margins" data-value="large">Large</button>
+          </div>
+        </div>
+
+        <div class="setting-group">
+          <label class="setting-label">Image Quality</label>
+          <div class="btn-group">
+            <button class="btn-seg" data-setting="quality" data-value="low">Low</button>
+            <button class="btn-seg active" data-setting="quality" data-value="medium">Medium</button>
+            <button class="btn-seg" data-setting="quality" data-value="high">High</button>
+          </div>
+        </div>
+
+        <div class="divider" style="margin:14px 0"></div>
+
+        <div class="toggle-row">
+          <span class="toggle-row-label">Page Numbers</span>
+          <div class="toggle" id="toggle-pagenum"></div>
+        </div>
+        <div class="toggle-row">
+          <span class="toggle-row-label">Background Graphics</span>
+          <div class="toggle on" id="toggle-bg"></div>
+        </div>
+        <div class="toggle-row">
+          <span class="toggle-row-label">Clickable Links</span>
+          <div class="toggle on" id="toggle-links"></div>
+        </div>
+        <div class="toggle-row">
+          <span class="toggle-row-label">Font Embedding</span>
+          <div class="toggle on" id="toggle-fonts"></div>
+        </div>
+        <div class="toggle-row">
+          <span class="toggle-row-label">Watermark</span>
+          <div class="toggle" id="toggle-watermark"></div>
+        </div>
+
+        <div class="divider" style="margin:14px 0"></div>
+
+        <div class="setting-group">
+          <label class="setting-label">Custom Header</label>
+          <input type="text" id="setting-header" placeholder="Document header text..." style="width:100%;padding:8px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--border-light);color:var(--text);font-size:13px;transition:all var(--transition);outline:none" onfocus="this.style.borderColor='var(--primary)'" onblur="this.style.borderColor='var(--border)'">
+        </div>
+
+        <div class="setting-group">
+          <label class="setting-label">Custom Footer</label>
+          <input type="text" id="setting-footer" placeholder="Document footer text..." style="width:100%;padding:8px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--border-light);color:var(--text);font-size:13px;transition:all var(--transition);outline:none" onfocus="this.style.borderColor='var(--primary)'" onblur="this.style.borderColor='var(--border)'">
+        </div>
+
+      </div>
+    </div>
+
+    <!-- SMART FORMATTER -->
+    <div class="card animate-in" style="animation-delay:.3s">
+      <div class="card-header">
+        <span class="card-title">Smart Formatter</span>
+        <span class="badge badge-success" style="font-size:10px">Auto</span>
+      </div>
+      <div class="card-body-sm">
+        <div style="display:flex;flex-direction:column;gap:6px" id="formatter-list"></div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ── PROGRESS OVERLAY ── -->
+<div class="progress-overlay" id="progress-overlay">
+  <div class="progress-card">
+    <div class="progress-spinner"></div>
+    <div class="progress-title">Generating PDF</div>
+    <div class="progress-step" id="progress-current-step">Scanning HTML…</div>
+    <div class="progress-steps" id="progress-steps-list"></div>
+    <div class="progress-bar-wrap">
+      <div class="progress-bar-fill" id="progress-bar" style="width:0%"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ── FULLSCREEN MODAL ── -->
+<div class="fullscreen-modal" id="fullscreen-modal">
+  <div class="fullscreen-toolbar">
+    <h3>HTML Preview — Fullscreen</h3>
+    <button class="btn btn-sm btn-ghost" style="color:white" id="btn-close-fullscreen">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      Close
+    </button>
+  </div>
+  <div class="fullscreen-body">
+    <iframe class="fullscreen-iframe" id="fullscreen-iframe" sandbox="allow-same-origin allow-scripts"></iframe>
+  </div>
+</div>
+
+<!-- ── HELP MODAL ── -->
+<div class="modal-overlay" id="help-modal">
+  <div class="modal-card">
+    <h2>Keyboard Shortcuts</h2>
+    <p class="modal-sub">Speed up your workflow with these shortcuts.</p>
+    <div class="shortcut-list">
+      <div class="shortcut-item"><span>Generate PDF</span><div class="kbd-wrap"><kbd>Ctrl</kbd><kbd>Enter</kbd></div></div>
+      <div class="shortcut-item"><span>Undo</span><div class="kbd-wrap"><kbd>Ctrl</kbd><kbd>Z</kbd></div></div>
+      <div class="shortcut-item"><span>Redo</span><div class="kbd-wrap"><kbd>Ctrl</kbd><kbd>Y</kbd></div></div>
+      <div class="shortcut-item"><span>Toggle theme</span><div class="kbd-wrap"><kbd>Ctrl</kbd><kbd>Shift</kbd><kbd>D</kbd></div></div>
+      <div class="shortcut-item"><span>Fullscreen preview</span><div class="kbd-wrap"><kbd>Ctrl</kbd><kbd>Shift</kbd><kbd>F</kbd></div></div>
+      <div class="shortcut-item"><span>Copy HTML</span><div class="kbd-wrap"><kbd>Ctrl</kbd><kbd>Shift</kbd><kbd>C</kbd></div></div>
+      <div class="shortcut-item"><span>Clear / Reset</span><div class="kbd-wrap"><kbd>Ctrl</kbd><kbd>Shift</kbd><kbd>X</kbd></div></div>
+      <div class="shortcut-item"><span>Close modal / Escape</span><div class="kbd-wrap"><kbd>Esc</kbd></div></div>
+    </div>
+    <div class="modal-divider"></div>
+    <h3 style="font-size:14px;font-weight:700;margin-bottom:12px">How It Works</h3>
+    <ol style="font-size:13px;color:var(--text-secondary);line-height:1.8;padding-left:18px">
+      <li>Upload an HTML file or paste code directly</li>
+      <li>Review the automatic document analysis</li>
+      <li>Adjust PDF settings in the sidebar</li>
+      <li>Click <strong style="color:var(--text)">Generate Professional PDF</strong></li>
+      <li>Download your perfectly formatted PDF</li>
+    </ol>
+    <div style="margin-top:20px;text-align:right">
+      <button class="btn btn-primary btn-sm" id="btn-close-help">Got it</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── TOAST CONTAINER ── -->
+<div class="toast-container" id="toast-container"></div>
+
+<script>
+/* ═══════════════════════════════════════════════
+   STATE
+═══════════════════════════════════════════════ */
+const state = {
+  htmlContent: '',
+  fileName: '',
+  activeTab: 'upload',
+  pdfBlob: null,
+  pdfDoc: null,
+  previewCanvases: [],
+  settings: {
+    paper: 'a4',
+    orientation: 'portrait',
+    margins: 'medium',
+    quality: 'medium',
+    pageNum: false,
+    bg: true,
+    links: true,
+    fonts: true,
+    watermark: false,
+    header: '',
+    footer: ''
+  },
+  history: [],
+  historyIndex: -1,
+  zoom: 100
+};
+
+const paperSizes = {
+  a4: [210, 297], letter: [215.9, 279.4], legal: [215.9, 355.6]
+};
+const marginSizes = { small: 10, medium: 20, large: 30 };
+const qualityScales = { low: 1, medium: 2, high: 3 };
+
+/* ═══════════════════════════════════════════════
+   SMART FORMATTER ITEMS
+═══════════════════════════════════════════════ */
+const formatterItems = [
+  'Fix margins & spacing', 'Center content', 'Align tables',
+  'Resize oversized images', 'Keep aspect ratios', 'Intelligent page breaks',
+  'Prevent text overflow', 'Balance whitespace', 'Improve typography',
+  'Clean empty divs', 'Merge duplicate spacing', 'Scale content'
+];
+
+function renderFormatter() {
+  const el = document.getElementById('formatter-list');
+  el.innerHTML = formatterItems.map(item => `
+    <div style="display:flex;align-items:center;gap:8px;padding:3px 0">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="width:13px;height:13px;color:var(--success);flex-shrink:0"><polyline points="20 6 9 17 4 12"/></svg>
+      <span style="font-size:12px;color:var(--text-secondary)">${item}</span>
+    </div>
+  `).join('');
+}
+
+/* ═══════════════════════════════════════════════
+   CODE MIRROR EDITOR
+═══════════════════════════════════════════════ */
+let editor;
+function initEditor() {
+  editor = CodeMirror.fromTextArea(document.getElementById('code-editor'), {
+    mode: 'htmlmixed',
+    theme: 'dracula',
+    lineNumbers: true,
+    lineWrapping: true,
+    indentUnit: 2,
+    tabSize: 2,
+    indentWithTabs: false,
+    autoCloseTags: true,
+    autofocus: false,
+    extraKeys: { 'Tab': 'indentMore', 'Shift-Tab': 'indentLess' }
+  });
+  editor.on('change', () => {
+    const val = editor.getValue();
+    updatePasteStats(val);
+    if (val.trim()) {
+      setHTML(val, 'Pasted code');
+    } else {
+      clearHTML();
+    }
+  });
+  editor.setSize(null, 320);
+}
+
+function updatePasteStats(val) {
+  document.getElementById('paste-char-count').textContent =
+    `${val.length.toLocaleString()} chars · ${val.split('\n').length} lines`;
+}
+
+/* ═══════════════════════════════════════════════
+   HTML MANAGEMENT
+═══════════════════════════════════════════════ */
+function setHTML(html, name) {
+  pushHistory();
+  state.htmlContent = html;
+  state.fileName = name;
+  state.pdfBlob = null;
+  updateHTMLPreview();
+  analyzeHTML(html);
+  document.getElementById('analysis-card').style.display = '';
+  document.getElementById('preview-card').style.display = '';
+  document.getElementById('btn-generate').disabled = false;
+  document.getElementById('success-actions-card').style.display = 'none';
+  document.querySelector('p[style*="Paste HTML"]') && (document.querySelector('.generate-btn + p').textContent = 'Ready to generate your PDF');
+  // clear pdf preview
+  const wrap = document.getElementById('pdf-preview-canvas-wrap');
+  wrap.innerHTML = `<div class="preview-placeholder"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg><p>PDF preview will appear after generating</p></div>`;
+}
+
+function clearHTML() {
+  state.htmlContent = '';
+  state.fileName = '';
+  state.pdfBlob = null;
+  document.getElementById('analysis-card').style.display = 'none';
+  document.getElementById('preview-card').style.display = 'none';
+  document.getElementById('btn-generate').disabled = true;
+  document.getElementById('success-actions-card').style.display = 'none';
+}
+
+/* ═══════════════════════════════════════════════
+   FILE UPLOAD
+═══════════════════════════════════════════════ */
+const uploadZone = document.getElementById('upload-zone');
+const fileInput = document.getElementById('file-input');
+
+uploadZone.addEventListener('dragover', e => { e.preventDefault(); uploadZone.classList.add('drag-over'); });
+uploadZone.addEventListener('dragleave', () => uploadZone.classList.remove('drag-over'));
+uploadZone.addEventListener('drop', e => {
+  e.preventDefault(); uploadZone.classList.remove('drag-over');
+  const f = e.dataTransfer.files[0];
+  if (f) handleFile(f);
+});
+uploadZone.addEventListener('click', () => fileInput.click());
+fileInput.addEventListener('change', e => { if (e.target.files[0]) handleFile(e.target.files[0]); });
+
+function handleFile(file) {
+  if (!file.name.match(/\.html?$/i)) { showToast('Please upload an .html or .htm file', 'error'); return; }
+  const reader = new FileReader();
+  reader.onload = e => {
+    const html = e.target.result;
+    const lines = html.split('\n').length;
+    const size = (file.size / 1024).toFixed(1);
+    document.getElementById('file-name').textContent = file.name;
+    document.getElementById('file-stats').textContent = `${size} KB · ${lines.toLocaleString()} lines`;
+    document.getElementById('file-info-wrap').style.display = '';
+    setHTML(html, file.name);
+    showToast(`${file.name} loaded successfully`, 'success');
+  };
+  reader.readAsText(file);
+}
+
+document.getElementById('btn-remove-file').addEventListener('click', () => {
+  document.getElementById('file-info-wrap').style.display = 'none';
+  fileInput.value = '';
+  clearHTML();
+});
+
+document.getElementById('btn-preview-html').addEventListener('click', () => {
+  if (state.htmlContent) openFullscreen(state.htmlContent);
+});
+
+/* ═══════════════════════════════════════════════
+   TABS
+═══════════════════════════════════════════════ */
+document.getElementById('input-tabs').addEventListener('click', e => {
+  const tab = e.target.closest('.tab');
+  if (!tab) return;
+  const t = tab.dataset.tab;
+  document.querySelectorAll('#input-tabs .tab').forEach(el => el.classList.toggle('active', el.dataset.tab === t));
+  document.getElementById('tab-upload').style.display = t === 'upload' ? '' : 'none';
+  document.getElementById('tab-paste').style.display = t === 'paste' ? '' : 'none';
+  state.activeTab = t;
+  if (t === 'paste' && editor) setTimeout(() => editor.refresh(), 50);
+});
+
+/* ═══════════════════════════════════════════════
+   HTML ANALYSIS
+═══════════════════════════════════════════════ */
+function analyzeHTML(html) {
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(html, 'text/html');
+
+  const title = doc.title || 'Untitled Document';
+  const headings = doc.querySelectorAll('h1,h2,h3,h4,h5,h6').length;
+  const images = doc.querySelectorAll('img').length;
+  const tables = doc.querySelectorAll('table').length;
+  const lists = doc.querySelectorAll('ul,ol').length;
+  const forms = doc.querySelectorAll('form').length;
+  const codeBlocks = doc.querySelectorAll('pre,code').length;
+  const links = doc.querySelectorAll('a').length;
+  const sections = doc.querySelectorAll('section,article,main,header,footer,nav,aside').length;
+  const scripts = doc.querySelectorAll('script').length;
+  const inlineCSS = doc.querySelectorAll('[style]').length;
+  const extCSS = doc.querySelectorAll('link[rel="stylesheet"]').length;
+
+  // Estimate pages
+  const bodyText = doc.body ? doc.body.innerText || doc.body.textContent : '';
+  const words = bodyText.trim().split(/\s+/).filter(Boolean).length;
+  const chars = bodyText.length;
+  const estPages = Math.max(1, Math.ceil(words / 400));
+  const readingTime = Math.max(1, Math.ceil(words / 200));
+
+  document.getElementById('doc-title-badge').textContent = title.length > 22 ? title.slice(0, 22) + '…' : title;
+
+  const stats = [
+    { label: 'Est. Pages', n: estPages },
+    { label: 'Headings', n: headings },
+    { label: 'Images', n: images },
+    { label: 'Tables', n: tables },
+    { label: 'Lists', n: lists },
+    { label: 'Links', n: links },
+    { label: 'Forms', n: forms },
+    { label: 'Code Blocks', n: codeBlocks },
+    { label: 'Sections', n: sections },
+    { label: 'Scripts', n: scripts },
+    { label: 'Inline CSS', n: inlineCSS },
+    { label: 'Ext. CSS', n: extCSS },
+  ];
+
+  const statsEl = document.getElementById('analysis-stats');
+  statsEl.innerHTML = '';
+  stats.forEach((s, i) => {
+    const el = document.createElement('div');
+    el.className = 'analysis-stat';
+    el.style.animationDelay = `${i * 0.03}s`;
+    el.innerHTML = `<div class="analysis-stat-num">${s.n}</div><div class="analysis-stat-label">${s.label}</div>`;
+    statsEl.appendChild(el);
+  });
+
+  // Warnings
+  const warnings = [];
+  if (!doc.title) warnings.push({ type: 'warn', msg: 'Missing <title> tag — PDF may have no document title' });
+  if (scripts > 0) warnings.push({ type: 'info', msg: `${scripts} script(s) detected — JS will not run in PDF` });
+  if (inlineCSS > 5) warnings.push({ type: 'info', msg: `${inlineCSS} elements use inline styles — will be preserved` });
+  if (images > 0) {
+    const imgs = [...doc.querySelectorAll('img')];
+    const brokenImgs = imgs.filter(img => !img.src || img.src === window.location.href);
+    if (brokenImgs.length > 0) warnings.push({ type: 'error', msg: `${brokenImgs.length} image(s) may have missing src attributes` });
+    const bigImgs = imgs.filter(img => parseInt(img.getAttribute('width')) > 1000 || parseInt(img.getAttribute('height')) > 1000);
+    if (bigImgs.length > 0) warnings.push({ type: 'warn', msg: `${bigImgs.length} image(s) have very large dimensions — will be resized automatically` });
+  }
+  if (!doc.querySelector('meta[charset]') && !doc.querySelector('meta[http-equiv]'))
+    warnings.push({ type: 'info', msg: 'No charset meta tag found — assuming UTF-8' });
+
+  const warnWrap = document.getElementById('warnings-wrap');
+  if (warnings.length > 0) {
+    warnWrap.innerHTML = `<div style="margin-top:14px;font-size:12px;font-weight:600;color:var(--text-secondary);margin-bottom:6px">Notices</div><div class="warnings-list">${warnings.map(w => `<div class="warning-item ${w.type}"><span class="warning-dot"></span>${w.msg}</div>`).join('')}</div>`;
+  } else {
+    warnWrap.innerHTML = `<div style="margin-top:12px;display:flex;align-items:center;gap:6px;font-size:12px;color:var(--success)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px"><polyline points="20 6 9 17 4 12"/></svg>No issues detected</div>`;
+  }
+
+  // Extra stats
+  document.getElementById('doc-extra-stats').innerHTML = [
+    `<div class="stat-badge"><strong>${words.toLocaleString()}</strong> words</div>`,
+    `<div class="stat-badge"><strong>${chars.toLocaleString()}</strong> chars</div>`,
+    `<div class="stat-badge"><strong>~${readingTime} min</strong> read</div>`,
+  ].join('');
+}
+
+/* ═══════════════════════════════════════════════
+   HTML PREVIEW
+═══════════════════════════════════════════════ */
+function updateHTMLPreview() {
+  const iframe = document.getElementById('html-iframe');
+  const blob = new Blob([state.htmlContent], { type: 'text/html' });
+  const url = URL.createObjectURL(blob);
+  iframe.src = url;
+  iframe.style.transform = `scale(${state.zoom / 100})`;
+  iframe.style.transformOrigin = 'top left';
+  iframe.style.width = `${100 * (100 / state.zoom)}%`;
+  iframe.style.height = `${420 * (100 / state.zoom)}px`;
+}
+
+/* zoom */
+document.getElementById('html-zoom-controls').addEventListener('click', e => {
+  const btn = e.target.closest('.zoom-btn');
+  if (!btn) return;
+  const zoom = parseInt(btn.dataset.zoom);
+  state.zoom = zoom;
+  document.querySelectorAll('.zoom-btn').forEach(b => b.classList.toggle('active', parseInt(b.dataset.zoom) === zoom));
+  if (state.htmlContent) updateHTMLPreview();
+});
+
+/* ═══════════════════════════════════════════════
+   PDF GENERATION
+═══════════════════════════════════════════════ */
+const progressSteps = [
+  'Scanning HTML',
+  'Applying Smart Formatter',
+  'Rendering Pages',
+  'Generating PDF',
+  'Finalizing'
+];
+
+function showProgress() {
+  const overlay = document.getElementById('progress-overlay');
+  const stepsList = document.getElementById('progress-steps-list');
+  overlay.style.display = 'flex';
+  stepsList.innerHTML = progressSteps.map((s, i) => `
+    <div class="progress-step-item" id="pstep-${i}">
+      <div class="progress-step-icon">${i + 1}</div>
+      <span>${s}</span>
+    </div>
+  `).join('');
+  setProgressStep(0);
+}
+
+function setProgressStep(idx) {
+  const total = progressSteps.length;
+  document.getElementById('progress-current-step').textContent = progressSteps[idx] + '…';
+  document.getElementById('progress-bar').style.width = `${Math.round(((idx) / total) * 100)}%`;
+  progressSteps.forEach((_, i) => {
+    const el = document.getElementById(`pstep-${i}`);
+    if (!el) return;
+    el.className = 'progress-step-item' + (i < idx ? ' done' : i === idx ? ' active' : '');
+    el.querySelector('.progress-step-icon').innerHTML = i < idx
+      ? `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" style="width:10px;height:10px"><polyline points="20 6 9 17 4 12"/></svg>`
+      : i + 1;
+  });
+}
+
+function hideProgress() {
+  document.getElementById('progress-overlay').style.display = 'none';
+}
+
+async function delay(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+async function generatePDF() {
+  if (!state.htmlContent) return;
+  const btn = document.getElementById('btn-generate');
+  btn.disabled = true;
+
+  showProgress();
+
+  try {
+    await delay(400);
+    setProgressStep(1);
+
+    // Smart format
+    const optimizedHTML = smartFormat(state.htmlContent);
+    await delay(500);
+    setProgressStep(2);
+
+    const s = state.settings;
+    const [pw, ph] = s.orientation === 'portrait'
+      ? paperSizes[s.paper]
+      : [paperSizes[s.paper][1], paperSizes[s.paper][0]];
+
+    const margin = marginSizes[s.margins];
+    const scale = qualityScales[s.quality];
+
+    // Render in a hidden div directly in the page (avoids iframe contentDocument null)
+    const renderDiv = document.createElement('div');
+    renderDiv.id = '_studio_render_div';
+    renderDiv.style.cssText = [
+      'position:fixed',
+      'left:-9999px',
+      'top:0',
+      'width:794px',
+      'min-height:1123px',
+      'background:white',
+      'color:#111',
+      'font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif',
+      'font-size:14px',
+      'line-height:1.6',
+      'overflow:visible',
+      'z-index:-1',
+      'visibility:hidden',
+      'pointer-events:none'
+    ].join(';');
+
+    // Parse the optimized HTML and inject its body content + styles into the div
+    const parser = new DOMParser();
+    const parsedDoc = parser.parseFromString(optimizedHTML, 'text/html');
+
+    // Copy all <style> and <link rel=stylesheet> into a wrapper
+    let styleContent = '';
+    parsedDoc.querySelectorAll('style').forEach(el => { styleContent += el.outerHTML; });
+    parsedDoc.querySelectorAll('link[rel="stylesheet"]').forEach(el => { styleContent += el.outerHTML; });
+
+    renderDiv.innerHTML = styleContent + (parsedDoc.body ? parsedDoc.body.innerHTML : optimizedHTML);
+    document.body.appendChild(renderDiv);
+
+    // Allow styles to apply
+    await delay(800);
+
+    setProgressStep(3);
+
+    const { jsPDF } = window.jspdf;
+    const pdf = new jsPDF({
+      orientation: s.orientation,
+      unit: 'mm',
+      format: s.paper === 'a4' ? 'a4' : s.paper === 'letter' ? 'letter' : 'legal',
+      compress: true
+    });
+
+    const pageW = pw - margin * 2;
+    const pageH = ph - margin * 2;
+
+    const canvas = await html2canvas(renderDiv, {
+      scale: scale,
+      useCORS: true,
+      allowTaint: true,
+      backgroundColor: s.bg ? '#ffffff' : '#ffffff',
+      width: 794,
+      height: renderDiv.scrollHeight || 1123,
+      windowWidth: 794,
+      logging: false,
+      foreignObjectRendering: false
+    });
+
+    document.body.removeChild(renderDiv);
+
+    const imgData = canvas.toDataURL('image/jpeg', s.quality === 'high' ? .95 : s.quality === 'medium' ? .85 : .7);
+    const imgW = canvas.width;
+    const imgH = canvas.height;
+
+    // Page slicing
+    const mmPerPx = pw / (794 * scale);
+    const pagePxH = (ph - margin * 2) / mmPerPx;
+    let totalPages = Math.ceil(imgH / pagePxH);
+    if (totalPages < 1) totalPages = 1;
+
+    state.previewCanvases = []; // reset page previews
+
+    for (let p = 0; p < totalPages; p++) {
+      if (p > 0) pdf.addPage(s.paper === 'a4' ? 'a4' : s.paper === 'letter' ? 'letter' : 'legal', s.orientation);
+
+      const srcY = p * pagePxH;
+      const sliceH = Math.min(pagePxH, imgH - srcY);
+
+      const sliceCanvas = document.createElement('canvas');
+      sliceCanvas.width = imgW;
+      sliceCanvas.height = sliceH;
+      const ctx = sliceCanvas.getContext('2d');
+      const fullImg = new Image();
+      await new Promise(r => { fullImg.onload = r; fullImg.src = imgData; });
+      ctx.drawImage(fullImg, 0, srcY, imgW, sliceH, 0, 0, imgW, sliceH);
+
+      const sliceData = sliceCanvas.toDataURL('image/jpeg', .9);
+
+      // Save for preview (max 6 pages shown)
+      if (p < 6) state.previewCanvases.push(sliceData);
+
+      const renderedH = (sliceH / imgH) * (imgH * mmPerPx);
+
+      pdf.addImage(sliceData, 'JPEG', margin, margin, pageW, Math.min(pageH, renderedH));
+
+      // Page numbers
+      if (s.pageNum) {
+        pdf.setFontSize(9);
+        pdf.setTextColor(150, 150, 150);
+        pdf.text(`${p + 1} / ${totalPages}`, pw / 2, ph - 8, { align: 'center' });
+      }
+
+      // Header
+      if (s.header) {
+        pdf.setFontSize(9);
+        pdf.setTextColor(100, 100, 100);
+        pdf.text(s.header, margin, 7);
+        pdf.setDrawColor(220, 220, 220);
+        pdf.line(margin, 9, pw - margin, 9);
+      }
+
+      // Footer
+      if (s.footer) {
+        pdf.setFontSize(9);
+        pdf.setTextColor(100, 100, 100);
+        pdf.text(s.footer, margin, ph - 5);
+        pdf.setDrawColor(220, 220, 220);
+        pdf.line(margin, ph - 7, pw - margin, ph - 7);
+      }
+
+      // Watermark
+      if (s.watermark) {
+        pdf.setFontSize(48);
+        pdf.setTextColor(200, 200, 200);
+        pdf.setGState(pdf.GState({ opacity: 0.15 }));
+        pdf.text('DRAFT', pw / 2, ph / 2, { align: 'center', angle: 45 });
+        pdf.setGState(pdf.GState({ opacity: 1 }));
+      }
+    }
+
+    setProgressStep(4);
+    await delay(300);
+
+    state.pdfBlob = pdf.output('blob');
+    state.pdfDoc = pdf;
+
+    // Show PDF preview (uses stored page images)
+    renderPDFPreview();
+
+    document.getElementById('progress-bar').style.width = '100%';
+    await delay(400);
+    hideProgress();
+
+    document.getElementById('success-actions-card').style.display = '';
+    showToast('PDF generated successfully!', 'success');
+
+  } catch (err) {
+    console.error(err);
+    hideProgress();
+    showToast('Error generating PDF. Please try again.', 'error');
+  }
+
+  btn.disabled = false;
+}
+
+/* ═══════════════════════════════════════════════
+   SMART FORMATTER
+═══════════════════════════════════════════════ */
+function smartFormat(html) {
+  const s = state.settings;
+  const [pw] = paperSizes[s.paper];
+  const margin = marginSizes[s.margins];
+
+  const printCSS = `<style id="_studio_print_css">
+    *, *::before, *::after { box-sizing: border-box; }
+    html, body {
+      margin: 0 !important; padding: 16px !important;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif !important;
+      font-size: 14px !important; line-height: 1.7 !important;
+      color: #111 !important; background: #fff !important;
+      max-width: 100% !important; width: 100% !important;
+    }
+    img { max-width: 100% !important; height: auto !important; display: block; }
+    table { width: 100% !important; border-collapse: collapse !important; table-layout: fixed !important; word-break: break-word; margin-bottom: 1em; }
+    td, th { padding: 7px 10px !important; border: 1px solid #d1d5db !important; word-wrap: break-word; vertical-align: top; }
+    th { background: #f3f4f6 !important; font-weight: 600 !important; }
+    h1,h2,h3,h4,h5,h6 { page-break-after: avoid; orphans: 3; widows: 3; margin-top: 1.2em; margin-bottom: .5em; line-height: 1.3; }
+    p { orphans: 3; widows: 3; margin-bottom: .75em; }
+    pre { background: #f8fafc !important; border: 1px solid #e2e8f0 !important; border-radius: 6px !important; padding: 14px !important; overflow: hidden; margin-bottom: 1em; }
+    code { background: #f1f5f9; border-radius: 4px; padding: 2px 5px; font-size: 12.5px; font-family: monospace; word-break: break-all; white-space: pre-wrap; }
+    pre code { background: none; padding: 0; font-size: 12px; }
+    a { color: #2563EB; }
+    ul, ol { padding-left: 22px; margin-bottom: .75em; }
+    li { margin-bottom: .3em; }
+    blockquote { border-left: 4px solid #e5e7eb; margin: 1em 0; padding: 8px 16px; color: #6b7280; }
+    hr { border: none; border-top: 1px solid #e5e7eb; margin: 1.5em 0; }
+  </style>`;
+
+  if (/<head[\s>]/i.test(html)) {
+    return html.replace(/(<head[^>]*>)/i, `$1${printCSS}`);
+  } else if (/<html[\s>]/i.test(html)) {
+    return html.replace(/(<html[^>]*>)/i, `$1<head>${printCSS}</head>`);
+  } else {
+    return printCSS + html;
+  }
+}
+
+/* ═══════════════════════════════════════════════
+   PDF PREVIEW RENDER
+   Uses the already-captured canvas slices stored
+   in state.previewCanvases — no embed/blob needed.
+═══════════════════════════════════════════════ */
+async function renderPDFPreview() {
+  const wrap = document.getElementById('pdf-preview-canvas-wrap');
+  wrap.innerHTML = '';
+
+  const pages = state.previewCanvases || [];
+  if (pages.length === 0) {
+    wrap.innerHTML = `<div class="preview-placeholder" style="color:#aaa">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+      <p>Preview not available</p></div>`;
+    return;
+  }
+
+  // Page counter label
+  const label = document.createElement('div');
+  label.style.cssText = 'color:#ccc;font-size:11px;font-weight:600;letter-spacing:.5px;margin-bottom:4px;align-self:flex-start;padding:0 4px';
+  label.textContent = `${pages.length} PAGE${pages.length > 1 ? 'S' : ''}`;
+  wrap.appendChild(label);
+
+  pages.forEach((dataUrl, idx) => {
+    const wrapper = document.createElement('div');
+    wrapper.style.cssText = 'position:relative;width:100%';
+
+    const img = document.createElement('img');
+    img.src = dataUrl;
+    img.style.cssText = 'width:100%;display:block;border-radius:3px;box-shadow:0 4px 24px rgba(0,0,0,.5)';
+    img.alt = `Page ${idx + 1}`;
+
+    const pgNum = document.createElement('div');
+    pgNum.style.cssText = 'text-align:center;color:#888;font-size:11px;margin-top:6px;margin-bottom:8px';
+    pgNum.textContent = `Page ${idx + 1}`;
+
+    wrapper.appendChild(img);
+    wrapper.appendChild(pgNum);
+    wrap.appendChild(wrapper);
+  });
+}
+
+/* ═══════════════════════════════════════════════
+   DOWNLOAD / ACTIONS
+═══════════════════════════════════════════════ */
+document.getElementById('btn-download-pdf').addEventListener('click', () => {
+  if (!state.pdfDoc) return;
+  const name = (state.fileName || 'document').replace(/\.html?$/i, '') + '.pdf';
+  state.pdfDoc.save(name);
+  showToast(`Downloading ${name}`);
+});
+
+document.getElementById('btn-download-html').addEventListener('click', () => {
+  if (!state.htmlContent) return;
+  const optimized = smartFormat(state.htmlContent);
+  const blob = new Blob([optimized], { type: 'text/html' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = (state.fileName || 'document').replace(/\.html?$/i, '') + '_optimized.html';
+  a.click(); URL.revokeObjectURL(url);
+  showToast('Optimized HTML downloaded');
+});
+
+document.getElementById('btn-copy-html').addEventListener('click', () => {
+  if (!state.htmlContent) return;
+  navigator.clipboard.writeText(state.htmlContent).then(() => showToast('HTML copied to clipboard', 'success'));
+});
+
+document.getElementById('btn-print').addEventListener('click', () => {
+  if (!state.htmlContent) return;
+  const win = window.open('', '_blank');
+  win.document.write(smartFormat(state.htmlContent));
+  win.document.close();
+  win.print();
+});
+
+document.getElementById('btn-reset').addEventListener('click', resetApp);
+
+function resetApp() {
+  state.htmlContent = ''; state.fileName = ''; state.pdfBlob = null; state.pdfDoc = null; state.previewCanvases = [];
+  document.getElementById('file-info-wrap').style.display = 'none';
+  document.getElementById('file-input').value = '';
+  if (editor) editor.setValue('');
+  clearHTML();
+  showToast('Reset complete');
+}
+
+/* ═══════════════════════════════════════════════
+   SAMPLE HTML
+═══════════════════════════════════════════════ */
+const sampleHTML = `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Sample Report — Q3 2024</title>
+  <style>
+    body { font-family: Georgia, serif; max-width: 800px; margin: 40px auto; padding: 0 24px; color: #1a1a1a; }
+    h1 { font-size: 2rem; border-bottom: 3px solid #2563EB; padding-bottom: 12px; }
+    h2 { color: #2563EB; margin-top: 2rem; }
+    table { width: 100%; border-collapse: collapse; margin: 1rem 0; }
+    th { background: #2563EB; color: white; padding: 10px 14px; text-align: left; }
+    td { padding: 10px 14px; border-bottom: 1px solid #e5e7eb; }
+    tr:nth-child(even) { background: #f9fafb; }
+    .highlight { background: #eff6ff; padding: 16px; border-left: 4px solid #2563EB; border-radius: 4px; }
+    code { background: #f1f5f9; padding: 2px 6px; border-radius: 4px; font-family: monospace; }
+  </style>
+</head>
+<body>
+  <h1>Q3 2024 Performance Report</h1>
+  <p class="highlight">This is a sample report generated to demonstrate <strong>HTML → PDF Studio</strong>. Replace this with your own HTML content.</p>
+
+  <h2>Executive Summary</h2>
+  <p>Overall performance exceeded targets by <strong>18%</strong> this quarter. Key growth drivers included expanded market reach, improved product quality, and team efficiency gains. Revenue grew across all segments.</p>
+
+  <h2>Revenue by Region</h2>
+  <table>
+    <thead><tr><th>Region</th><th>Q2 2024</th><th>Q3 2024</th><th>Growth</th></tr></thead>
+    <tbody>
+      <tr><td>North America</td><td>$1.2M</td><td>$1.5M</td><td>+25%</td></tr>
+      <tr><td>Europe</td><td>$840K</td><td>$960K</td><td>+14%</td></tr>
+      <tr><td>Asia Pacific</td><td>$620K</td><td>$780K</td><td>+26%</td></tr>
+      <tr><td>Latin America</td><td>$180K</td><td>$240K</td><td>+33%</td></tr>
+    </tbody>
+  </table>
+
+  <h2>Key Metrics</h2>
+  <ul>
+    <li>Monthly Active Users: <strong>124,500</strong> (+18%)</li>
+    <li>Net Promoter Score: <strong>72</strong> (industry avg: 45)</li>
+    <li>Customer Retention: <strong>94.2%</strong></li>
+    <li>Support Tickets Resolved: <strong>98.7%</strong> within SLA</li>
+  </ul>
+
+  <h2>Technical Highlights</h2>
+  <p>System uptime maintained at <code>99.98%</code> with zero critical incidents. Infrastructure costs reduced by 12% through optimization.</p>
+
+  <h2>Outlook</h2>
+  <p>Q4 targets have been set at 15% above Q3 actuals. Product launches scheduled for October and November are expected to drive additional growth.</p>
+</body>
+</html>`;
+
+document.getElementById('btn-paste-sample').addEventListener('click', () => {
+  if (editor) {
+    editor.setValue(sampleHTML);
+    showToast('Sample HTML loaded');
+  }
+});
+
+document.getElementById('btn-clear-editor').addEventListener('click', () => {
+  if (editor) editor.setValue('');
+  clearHTML();
+});
+
+/* ═══════════════════════════════════════════════
+   FULLSCREEN
+═══════════════════════════════════════════════ */
+function openFullscreen(html) {
+  const modal = document.getElementById('fullscreen-modal');
+  const iframe = document.getElementById('fullscreen-iframe');
+  const blob = new Blob([html], { type: 'text/html' });
+  iframe.src = URL.createObjectURL(blob);
+  modal.classList.add('open');
+}
+document.getElementById('btn-fullscreen').addEventListener('click', () => {
+  if (state.htmlContent) openFullscreen(state.htmlContent);
+});
+document.getElementById('btn-close-fullscreen').addEventListener('click', () => {
+  document.getElementById('fullscreen-modal').classList.remove('open');
+});
+
+/* ═══════════════════════════════════════════════
+   SETTINGS
+═══════════════════════════════════════════════ */
+document.querySelectorAll('.btn-seg[data-setting]').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const setting = btn.dataset.setting;
+    const value = btn.dataset.value;
+    state.settings[setting] = value;
+    btn.closest('.btn-group').querySelectorAll('.btn-seg').forEach(b => b.classList.toggle('active', b === btn));
+  });
+});
+
+document.getElementById('setting-paper').addEventListener('change', e => { state.settings.paper = e.target.value; });
+document.getElementById('setting-header').addEventListener('input', e => { state.settings.header = e.target.value; });
+document.getElementById('setting-footer').addEventListener('input', e => { state.settings.footer = e.target.value; });
+
+document.querySelectorAll('.toggle').forEach(t => {
+  t.addEventListener('click', () => {
+    t.classList.toggle('on');
+    const id = t.id;
+    if (id === 'toggle-pagenum') state.settings.pageNum = t.classList.contains('on');
+    if (id === 'toggle-bg') state.settings.bg = t.classList.contains('on');
+    if (id === 'toggle-links') state.settings.links = t.classList.contains('on');
+    if (id === 'toggle-fonts') state.settings.fonts = t.classList.contains('on');
+    if (id === 'toggle-watermark') state.settings.watermark = t.classList.contains('on');
+  });
+});
+
+/* ═══════════════════════════════════════════════
+   GENERATE BUTTON
+═══════════════════════════════════════════════ */
+document.getElementById('btn-generate').addEventListener('click', generatePDF);
+
+/* ═══════════════════════════════════════════════
+   THEME
+═══════════════════════════════════════════════ */
+function setTheme(dark) {
+  document.documentElement.setAttribute('data-theme', dark ? 'dark' : 'light');
+  document.getElementById('theme-icon-light').style.display = dark ? 'none' : '';
+  document.getElementById('theme-icon-dark').style.display = dark ? '' : 'none';
+  localStorage.setItem('studio_theme', dark ? 'dark' : 'light');
+}
+document.getElementById('btn-theme').addEventListener('click', () => {
+  setTheme(document.documentElement.getAttribute('data-theme') !== 'dark');
+});
+// Load saved theme
+const savedTheme = localStorage.getItem('studio_theme');
+if (savedTheme === 'dark') setTheme(true);
+
+/* ═══════════════════════════════════════════════
+   HELP MODAL
+═══════════════════════════════════════════════ */
+document.getElementById('btn-help').addEventListener('click', () => {
+  document.getElementById('help-modal').classList.add('open');
+});
+document.getElementById('btn-close-help').addEventListener('click', () => {
+  document.getElementById('help-modal').classList.remove('open');
+});
+document.getElementById('help-modal').addEventListener('click', e => {
+  if (e.target === document.getElementById('help-modal')) document.getElementById('help-modal').classList.remove('open');
+});
+
+/* ═══════════════════════════════════════════════
+   ANALYSIS COLLAPSE
+═══════════════════════════════════════════════ */
+document.getElementById('analysis-toggle').addEventListener('click', function() {
+  this.classList.toggle('collapsed');
+  const body = document.getElementById('analysis-body');
+  body.style.display = this.classList.contains('collapsed') ? 'none' : '';
+});
+
+/* ═══════════════════════════════════════════════
+   UNDO / REDO (code editor history)
+═══════════════════════════════════════════════ */
+function pushHistory() {
+  const cur = state.htmlContent;
+  if (state.history[state.historyIndex] === cur) return;
+  state.history = state.history.slice(0, state.historyIndex + 1);
+  state.history.push(cur);
+  state.historyIndex = state.history.length - 1;
+}
+
+document.getElementById('btn-undo').addEventListener('click', () => {
+  if (state.activeTab === 'paste' && editor) { editor.undo(); return; }
+  if (state.historyIndex > 0) {
+    state.historyIndex--;
+    state.htmlContent = state.history[state.historyIndex];
+    showToast('Undone');
+  }
+});
+document.getElementById('btn-redo').addEventListener('click', () => {
+  if (state.activeTab === 'paste' && editor) { editor.redo(); return; }
+  if (state.historyIndex < state.history.length - 1) {
+    state.historyIndex++;
+    state.htmlContent = state.history[state.historyIndex];
+    showToast('Redone');
+  }
+});
+
+/* ═══════════════════════════════════════════════
+   TOAST
+═══════════════════════════════════════════════ */
+function showToast(msg, type = '') {
+  const container = document.getElementById('toast-container');
+  const toast = document.createElement('div');
+  toast.className = `toast${type ? ' ' + type : ''}`;
+  toast.innerHTML = `
+    ${type === 'success' ? `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px;flex-shrink:0"><polyline points="20 6 9 17 4 12"/></svg>` : type === 'error' ? `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px;flex-shrink:0"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>` : ''}
+    ${msg}
+  `;
+  container.appendChild(toast);
+  setTimeout(() => {
+    toast.style.animation = 'toastOut .3s ease forwards';
+    setTimeout(() => toast.remove(), 300);
+  }, 3000);
+}
+
+/* ═══════════════════════════════════════════════
+   KEYBOARD SHORTCUTS
+═══════════════════════════════════════════════ */
+document.addEventListener('keydown', e => {
+  const mod = e.ctrlKey || e.metaKey;
+  if (e.key === 'Escape') {
+    document.getElementById('fullscreen-modal').classList.remove('open');
+    document.getElementById('help-modal').classList.remove('open');
+  }
+  if (mod && e.key === 'Enter') { e.preventDefault(); if (!document.getElementById('btn-generate').disabled) generatePDF(); }
+  if (mod && e.shiftKey && e.key === 'D') { e.preventDefault(); document.getElementById('btn-theme').click(); }
+  if (mod && e.shiftKey && e.key === 'F') { e.preventDefault(); if (state.htmlContent) openFullscreen(state.htmlContent); }
+  if (mod && e.shiftKey && e.key === 'C') { e.preventDefault(); document.getElementById('btn-copy-html').click(); }
+  if (mod && e.shiftKey && e.key === 'X') { e.preventDefault(); resetApp(); }
+});
+
+// /* ═══════════════════════════════════════════════
+//    INIT
+// ═══════════════════════════════════════════════ */
+document.addEventListener('DOMContentLoaded', () => {
+  initEditor();
+  renderFormatter();
+});
+</script>
+
+</body>
+</html>
+\
